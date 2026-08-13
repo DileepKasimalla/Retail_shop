@@ -1,3 +1,24 @@
-# Vercel's Python builder installs from the repository root, but the real
-# dependency list lives with the backend. Keep it in one place.
--r backend/requirements.txt
+# Canonical dependency list for the backend.
+#
+# It lives at the repo root because Vercel's Python builder only looks here
+# (or in api/), and it parses this file itself rather than handing it to pip —
+# so pip's `-r other-file.txt` include syntax is NOT supported. Keep this a
+# plain, literal list.
+#
+# `backend/requirements.txt` is a one-line shim pointing here, so working from
+# inside backend/ still behaves normally.
+
+fastapi>=0.115
+uvicorn[standard]>=0.34
+SQLAlchemy>=2.0.36
+pydantic>=2.9
+pydantic-settings>=2.6
+PyJWT>=2.10
+bcrypt>=4.2
+python-dotenv>=1.0
+python-multipart>=0.0.9
+openpyxl>=3.1
+reportlab>=4.2
+Pillow>=10.4
+# PostgreSQL driver
+psycopg[binary]>=3.2
