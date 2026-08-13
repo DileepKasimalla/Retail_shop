@@ -1,0 +1,3 @@
+# Vercel's Python builder installs from the repository root, but the real
+# dependency list lives with the backend. Keep it in one place.
+-r backend/requirements.txt

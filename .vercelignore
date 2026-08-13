@@ -1,0 +1,11 @@
+# Keep the upload (and the 250 MB function bundle) small.
+backend/.venv/
+backend/images/
+backend/tests/
+backend/shop.db
+frontend/node_modules/
+frontend/dist/
+**/__pycache__/
+*.pdf
+sample_bill.jpg
+*.lnk

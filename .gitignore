@@ -1,0 +1,35 @@
+# Root
+.DS_Store
+Thumbs.db
+*.lnk
+
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+frontend/.env.production
+
+# Python (applies to backend/ and the api/ Vercel shim alike)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/.venv/
+backend/*.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Deploy
+.vercel/
+
+# Generated output — bills, statements and sample data used during development
+*.pdf
+sample_bill.jpg
+
+# Item/category photos are imported into the database, not served from disk
+backend/images/**
+!backend/images/README.md
+!backend/images/**/.gitkeep

@@ -1,0 +1,25 @@
+name,category,unit,unit_price
+Rice,Grains,kg,60
+Wheat Flour,Grains,kg,45
+Toor Dal,Grains,kg,140
+Sugar,Grocery,kg,45
+Salt,Grocery,kg,20
+Cooking Oil,Grocery,litre,130
+Tamarind,Grocery,kg,120
+Milk,Dairy,litre,30
+Eggs,Dairy,piece,6
+Tea Powder,Beverages,kg,320
+Coffee Powder,Beverages,kg,450
+Red Chilli Powder,Spices,kg,280
+Turmeric Powder,Spices,kg,240
+Onion,Vegetables,kg,35
+Potato,Vegetables,kg,30
+Tomato,Vegetables,kg,40
+Bread,Bakery,piece,45
+Biscuits,Snacks,packet,20
+Soap,Personal Care,piece,35
+Shampoo,Personal Care,piece,3
+Toothpaste,Personal Care,piece,55
+Detergent Powder,Household,kg,110
+Matchbox,Household,piece,2
+Cooking Gas Lighter,Household,piece,80

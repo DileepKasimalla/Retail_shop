@@ -1,0 +1,13 @@
+name,phone,address,payment_type,note
+Ramesh Kumar,9876543210,12 Main Road,periodic,Buys groceries monthly
+Suresh Reddy,9812345678,45 Gandhi Nagar,per_use,Pays cash each time
+Lakshmi Devi,9900112233,7 Temple Street,periodic,Settles on 1st of month
+Anil Sharma,9765432109,23 Market Road,per_use,
+Priya Menon,9845098450,88 Lake View,periodic,Regular rice & oil
+Venkatesh Rao,9700087654,5 Station Road,per_use,Prefers UPI
+Fatima Begum,9933445566,19 Rose Garden,periodic,Monthly provisions
+Karthik Nair,9812000111,3 Beach Road,per_use,
+Meena Kumari,9876000222,56 Hill Street,periodic,Runs a small tea stall
+Joseph Thomas,9701234567,101 Church Road,per_use,Weekly buyer
+Deepak Verma,9856341270,77 Green Park,periodic,Owes from last month
+Sunita Patil,9911223344,34 New Colony,per_use,
