@@ -21,6 +21,7 @@ either way.
 from __future__ import annotations
 
 import sys
+import traceback
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode
 
@@ -28,7 +29,33 @@ BACKEND = Path(__file__).resolve().parent.parent / "backend"
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-from app.main import app  # noqa: E402  (path setup must run first)
+try:
+    from app.main import app  # noqa: E402  (path setup must run first)
+except Exception:  # pragma: no cover - only on a misconfigured deployment
+    # An exception escaping this module makes Vercel serve an opaque
+    # FUNCTION_INVOCATION_FAILED page with no clue as to the cause. Print the
+    # traceback (it lands in the runtime logs) and stand up a placeholder app
+    # so the error reaches the browser as a readable 500 instead.
+    _STARTUP_ERROR = traceback.format_exc()
+    print(_STARTUP_ERROR, file=sys.stderr, flush=True)
+
+    async def app(scope, receive, send):  # type: ignore[misc]
+        if scope["type"] != "http":
+            return
+        body = (
+            b"The API failed to start. This is almost always a missing or "
+            b"malformed environment variable (SECRET_KEY, DATABASE_URL). "
+            b"The full traceback is in the Vercel runtime logs."
+        )
+        await send({
+            "type": "http.response.start",
+            "status": 500,
+            "headers": [
+                (b"content-type", b"text/plain; charset=utf-8"),
+                (b"cache-control", b"no-store"),
+            ],
+        })
+        await send({"type": "http.response.body", "body": body})
 
 # Must match the query parameter used in vercel.json's rewrite destination.
 _PATH_PARAM = "__vercel_path"
@@ -63,7 +90,9 @@ class RestoreOriginalPath:
 
 
 # Added at import time: Starlette freezes the middleware stack once the app
-# starts handling requests.
-app.add_middleware(RestoreOriginalPath)
+# starts handling requests. Skipped when `app` is the plain-callable fallback
+# above, which answers every path identically anyway.
+if hasattr(app, "add_middleware"):
+    app.add_middleware(RestoreOriginalPath)
 
 __all__ = ["app"]

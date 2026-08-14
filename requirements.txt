@@ -22,3 +22,7 @@ reportlab>=4.2
 Pillow>=10.4
 # PostgreSQL driver
 psycopg[binary]>=3.2
+# Fallback: ensure a psycopg2-compatible driver is available in environments
+# that import the psycopg2 dialect at startup. This helps Vercel during import
+# when the runtime tries to load `psycopg2`.
+psycopg2-binary>=2.9

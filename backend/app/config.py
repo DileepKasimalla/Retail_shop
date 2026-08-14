@@ -59,6 +59,22 @@ class Settings(BaseSettings):
     def _validate_secret(cls, v: str) -> str:
         return v.strip()
 
+    @field_validator("database_url")
+    @classmethod
+    def _normalise_database_url(cls, v: str) -> str:
+        """Force the psycopg (v3) driver onto bare Postgres URLs.
+
+        Hosted Postgres providers hand out `postgresql://...`. SQLAlchemy reads
+        that as "use the default driver", which is psycopg2 — not installed
+        here, so `create_engine` raises ModuleNotFoundError at import time and
+        the whole app fails to boot. Only `psycopg` is a dependency, so pin it.
+        """
+        v = v.strip()
+        for prefix in ("postgresql://", "postgres://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix):]
+        return v
+
 
 @lru_cache
 def get_settings() -> Settings:
