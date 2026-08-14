@@ -1,6 +1,7 @@
 """Application configuration, loaded from environment variables / .env file."""
 from __future__ import annotations
 
+import os
 import secrets
 import warnings
 from functools import lru_cache
@@ -19,7 +20,13 @@ class Settings(BaseSettings):
 
     # General
     app_name: str = "Retail Shop Manager"
-    environment: str = Field(default="development")  # "development" | "production"
+    # "development" | "production". Defaults to production on Vercel so a
+    # forgotten ENVIRONMENT var can't silently start a live deployment in
+    # development mode — which would generate a throwaway SECRET_KEY on every
+    # cold start and log users out at random. An explicit env var still wins.
+    environment: str = Field(
+        default_factory=lambda: "production" if os.getenv("VERCEL") else "development"
+    )
 
     # Security / auth
     secret_key: str = Field(default="")

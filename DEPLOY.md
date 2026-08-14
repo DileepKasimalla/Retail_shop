@@ -60,13 +60,38 @@ rows, so it is safe to re-read before committing to it.
 ## 4. Import the project into Vercel
 
 **Add New → Project → import the GitHub repo.** Vercel reads `vercel.json`, so
-leave the framework preset alone. Set these environment variables (Settings →
-Environment Variables, applied to Production):
+leave the framework preset alone.
+
+**`SECRET_KEY` is the only variable you must set by hand.** Generate one and add
+it under Settings → Environment Variables, applied to Production:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+The app refuses to boot in production if `SECRET_KEY` is missing or under 32
+characters, so a bad value fails loudly rather than silently weakening tokens.
+`ENVIRONMENT` does not need setting — the app defaults to production whenever
+Vercel's own `VERCEL` variable is present.
+
+### DATABASE_URL
+
+If you connect the database through Vercel's **Neon integration** (Storage →
+Neon), it injects `DATABASE_URL` and a dozen `PG*` / `POSTGRES_*` variables for
+you. Leave them alone — its `DATABASE_URL` is already the pooled endpoint, which
+is what serverless wants.
+
+The integration writes a plain `postgresql://…` URL. SQLAlchemy reads that
+prefix as "use psycopg2", which is not a dependency here, so `config.py`
+rewrites it to `postgresql+psycopg://` on load. Setting the variable yourself
+with either prefix works.
+
+If you are *not* using the integration, add `DATABASE_URL` manually and use the
+**pooled** host (the one with `-pooler`).
+
+These are all optional:
 
 ```
-ENVIRONMENT=production
-SECRET_KEY=<paste a fresh one, see below>
-DATABASE_URL=postgresql+psycopg://user:pass@ep-xxx-pooler.neon.tech/neondb?sslmode=require
 ACCESS_TOKEN_EXPIRE_MINUTES=720
 CURRENCY_CODE=INR
 CURRENCY_SYMBOL=₹
@@ -75,20 +100,13 @@ SHOP_ADDRESS=
 SHOP_PHONE=
 ```
 
-Generate the secret:
+### When a deploy still 500s
 
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
-
-Two things to get right:
-
-- Keep the `postgresql+psycopg://` scheme — that is SQLAlchemy's driver prefix,
-  not plain libpq. Neon hands you `postgresql://`, so add the `+psycopg`.
-- Use the **pooled** host here (the one with `-pooler`).
-
-The app refuses to boot in production if `SECRET_KEY` is missing or under 32
-characters, so a bad value fails loudly rather than silently weakening tokens.
+Vercel shows an opaque `FUNCTION_INVOCATION_FAILED` page whenever the Python
+module raises while importing. `api/index.py` catches that: it prints the
+traceback to stderr (Deployments → your deployment → Logs) and serves a readable
+plain-text 500 instead. Almost always a missing `SECRET_KEY` or an unreachable
+database.
 
 `CORS_ORIGINS` can stay at its default — same-origin requests never trigger a
 CORS check. Only set it if you later serve the frontend from another domain.

@@ -52,8 +52,14 @@ def _seed_admin() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _init_db()
-    _seed_admin()
+    # Startup work is best-effort: on serverless this runs on every cold start,
+    # and letting a transient database error escape would fail the whole
+    # invocation rather than the one request that actually needs the database.
+    try:
+        _init_db()
+        _seed_admin()
+    except Exception:
+        logger.exception("Startup initialisation failed; continuing without it.")
     yield
 
 
