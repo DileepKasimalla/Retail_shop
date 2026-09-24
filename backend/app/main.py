@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 
 from .config import get_settings
 from .database import IS_SERVERLESS, Base, SessionLocal, engine
@@ -22,14 +22,17 @@ settings = get_settings()
 def _init_db() -> None:
     """Create any missing tables.
 
-    Skipped on serverless, where lifespan runs on every cold start: create_all
-    issues a reflection query per table on each one, adding latency to the
-    first request and doing nothing useful after the initial deploy. Create the
-    schema once from a shell instead (see DEPLOY.md):
-        python manage.py init-db
+    On serverless this runs on every cold start, where create_all's
+    reflection query per table would add latency for nothing after the first
+    deploy. So there, list the existing tables in one query and only call
+    create_all when something is missing — which bootstraps a fresh database
+    straight from the deployment, with no shell needed.
     """
     if IS_SERVERLESS:
-        return
+        existing = set(inspect(engine).get_table_names())
+        if set(Base.metadata.tables) <= existing:
+            return
+        logger.info("Creating missing tables: %s", sorted(set(Base.metadata.tables) - existing))
     Base.metadata.create_all(bind=engine)
 
 
@@ -50,16 +53,32 @@ def _seed_admin() -> None:
         logger.info("Seeded initial admin user '%s' from environment.", user.username)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup work is best-effort: on serverless this runs on every cold start,
-    # and letting a transient database error escape would fail the whole
-    # invocation rather than the one request that actually needs the database.
+_bootstrapped = False
+
+
+def bootstrap() -> None:
+    """Create missing tables and seed the first admin. Idempotent, best-effort.
+
+    Called from lifespan, and also directly by the Vercel entry point
+    (api/index.py) so it does not depend on the platform running ASGI
+    lifespan events. A transient database error is logged rather than raised:
+    escaping here would fail the whole invocation instead of just the one
+    request that actually needs the database.
+    """
+    global _bootstrapped
+    if _bootstrapped:
+        return
     try:
         _init_db()
         _seed_admin()
+        _bootstrapped = True
     except Exception:
         logger.exception("Startup initialisation failed; continuing without it.")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    bootstrap()
     yield
 
 

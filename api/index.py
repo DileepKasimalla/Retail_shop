@@ -92,10 +92,15 @@ async def _startup_failed(scope, receive, send):
 
 def _build_app():
     try:
-        from app.main import app as fastapi_app
+        from app.main import app as fastapi_app, bootstrap
     except Exception:  # pragma: no cover - only on a misconfigured deployment
         print(traceback.format_exc(), file=sys.stderr, flush=True)
         return _startup_failed
+
+    # Create tables / seed the first admin on a fresh database. Best-effort and
+    # idempotent; done here as well as in lifespan so it runs even if the
+    # platform never sends ASGI lifespan events.
+    bootstrap()
 
     # Added at import time: Starlette freezes the middleware stack once the app
     # starts handling requests.

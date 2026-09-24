@@ -113,8 +113,20 @@ CORS check. Only set it if you later serve the frontend from another domain.
 
 ## 5. Create your login
 
-Vercel has no shell, so run this from your machine pointed at Neon (**direct**
-URL). PowerShell:
+**From Vercel (no local setup).** Add two more environment variables and
+redeploy:
+
+```
+ADMIN_USERNAME=<your login name>
+ADMIN_PASSWORD=<at least 8 characters>
+```
+
+On its first cold start the deployed app creates any missing tables and, if the
+database has no users yet, creates this account. Log in, then **delete both
+variables** in Vercel — once a user exists they are ignored, and the password
+shouldn't sit in the project settings. Change it from the Settings page.
+
+**Or from your machine**, pointed at Neon (**direct** URL). PowerShell:
 
 ```powershell
 cd backend
@@ -156,10 +168,10 @@ line from `vercel.json` and it falls back to the plan default.
 
 - **Cold starts.** The first request after idle takes a second or two while the
   Python function boots. Normal for serverless; subsequent requests are fast.
-- **Schema changes.** `create_all` is skipped on serverless (it would re-run on
-  every cold start). After changing a model, run `manage.py init-db` against
-  Neon. That only *adds* missing tables — it never alters an existing one, so
-  for column changes either write the `ALTER` yourself or add Alembic.
+- **Schema changes.** Each cold start lists the existing tables (one query) and
+  creates any that are missing, so a new model's table appears on the next
+  deploy. It never alters an existing table, so for column changes either
+  write the `ALTER` yourself or add Alembic.
 - **Backups.** Neon keeps point-in-time history on paid plans; on the free plan
   take your own dumps periodically.
 - **Login throttle** is per-process and in-memory, so it resets as containers
