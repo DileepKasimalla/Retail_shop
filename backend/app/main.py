@@ -6,12 +6,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import inspect, select
+from sqlalchemy import inspect, select, text
 
 from .config import get_settings
 from .database import IS_SERVERLESS, Base, SessionLocal, engine
 from .models import User
-from .routers import auth, categories, customers, dashboard, products
+from .routers import auth, categories, customers, dashboard, products, users
 from .schemas import MetaOut
 from .security import hash_password
 
@@ -28,12 +28,29 @@ def _init_db() -> None:
     create_all when something is missing — which bootstraps a fresh database
     straight from the deployment, with no shell needed.
     """
-    if IS_SERVERLESS:
-        existing = set(inspect(engine).get_table_names())
-        if set(Base.metadata.tables) <= existing:
-            return
-        logger.info("Creating missing tables: %s", sorted(set(Base.metadata.tables) - existing))
-    Base.metadata.create_all(bind=engine)
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    if not IS_SERVERLESS or not set(Base.metadata.tables) <= existing:
+        if IS_SERVERLESS:
+            logger.info("Creating missing tables: %s", sorted(set(Base.metadata.tables) - existing))
+        Base.metadata.create_all(bind=engine)
+    if "users" in existing:
+        _add_users_is_admin(insp)
+
+
+def _add_users_is_admin(insp) -> None:
+    """Add `users.is_admin` to a database created before roles existed.
+
+    create_all never alters an existing table. Every user from that era was
+    the full-power shopkeeper, so they all become admins — nobody loses
+    access they had.
+    """
+    if any(c["name"] == "is_admin" for c in insp.get_columns("users")):
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE"))
+        conn.execute(text("UPDATE users SET is_admin = TRUE"))
+    logger.info("Added users.is_admin; existing users are now admins.")
 
 
 def _seed_admin() -> None:
@@ -47,6 +64,7 @@ def _seed_admin() -> None:
         user = User(
             username=settings.admin_username.strip(),
             hashed_password=hash_password(settings.admin_password),
+            is_admin=True,
         )
         db.add(user)
         db.commit()
@@ -97,6 +115,7 @@ app.include_router(customers.router)
 app.include_router(dashboard.router)
 app.include_router(products.router)
 app.include_router(categories.router)
+app.include_router(users.router)
 
 
 @app.get("/api/health", tags=["meta"])

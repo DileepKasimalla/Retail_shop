@@ -17,6 +17,8 @@ import type {
   SettleInput,
   SettleResult,
   User,
+  UserInput,
+  UserUpdate,
 } from "./types";
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -161,6 +163,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ current_password, new_password }),
     }),
+  setupStatus: () => request<{ needs_setup: boolean }>("/api/auth/setup"),
+  setup: (username: string, password: string) =>
+    request<{ access_token: string }>("/api/auth/setup", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+
+  // users (admin only)
+  listUsers: () => request<User[]>("/api/users"),
+  createUser: (data: UserInput) =>
+    request<User>("/api/users", { method: "POST", body: JSON.stringify(data) }),
+  updateUser: (id: number, data: UserUpdate) =>
+    request<User>(`/api/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
   // dashboard
   dashboard: () => request<DashboardStats>("/api/dashboard"),

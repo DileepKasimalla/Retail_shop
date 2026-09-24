@@ -634,3 +634,69 @@ def test_change_password_flow(client, shopkeeper):
     assert ok.status_code == 204
     assert client.post("/api/auth/login", json=shopkeeper).status_code == 401
     assert client.post("/api/auth/login", json={"username": shopkeeper["username"], "password": "brandnew123"}).status_code == 200
+
+
+# ---- First-run setup & user management -------------------------------------
+
+def _admin_headers(client):
+    import uuid
+    from app.database import SessionLocal
+    from app.models import User
+    from app.security import hash_password
+    name = f"admin_{uuid.uuid4().hex[:8]}"
+    with SessionLocal() as db:
+        db.add(User(username=name, hashed_password=hash_password("AdminPass123"), is_admin=True))
+        db.commit()
+    token = client.post("/api/auth/login", json={"username": name, "password": "AdminPass123"}).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_setup_creates_first_admin_once(client):
+    from sqlalchemy import delete
+    from app.database import SessionLocal
+    from app.models import User
+    with SessionLocal() as db:
+        db.execute(delete(User))
+        db.commit()
+
+    assert client.get("/api/auth/setup").json() == {"needs_setup": True}
+    res = client.post("/api/auth/setup", json={"username": "owner", "password": "short"})
+    assert res.status_code == 422
+    res = client.post("/api/auth/setup", json={"username": "owner", "password": "OwnerPass123"})
+    assert res.status_code == 201, res.text
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {res.json()['access_token']}"}).json()
+    assert me["username"] == "owner" and me["is_admin"] is True
+
+    assert client.get("/api/auth/setup").json() == {"needs_setup": False}
+    again = client.post("/api/auth/setup", json={"username": "intruder", "password": "IntruderPass1"})
+    assert again.status_code == 409
+
+
+def test_non_admin_cannot_manage_users(client, auth_headers):
+    assert client.get("/api/users", headers=auth_headers).status_code == 403
+    res = client.post("/api/users", json={"username": "x", "password": "Password123"}, headers=auth_headers)
+    assert res.status_code == 403
+
+
+def test_admin_creates_and_manages_user(client):
+    h = _admin_headers(client)
+    res = client.post("/api/users", json={"username": "staff1", "password": "StaffPass123"}, headers=h)
+    assert res.status_code == 201, res.text
+    staff = res.json()
+    assert staff["is_admin"] is False and staff["is_active"] is True
+    assert client.post("/api/users", json={"username": "staff1", "password": "StaffPass123"}, headers=h).status_code == 409
+    assert any(u["username"] == "staff1" for u in client.get("/api/users", headers=h).json())
+
+    # New user can log in; reset password works; disabling blocks login.
+    assert client.post("/api/auth/login", json={"username": "staff1", "password": "StaffPass123"}).status_code == 200
+    client.patch(f"/api/users/{staff['id']}", json={"password": "NewStaffPass1"}, headers=h)
+    assert client.post("/api/auth/login", json={"username": "staff1", "password": "NewStaffPass1"}).status_code == 200
+    client.patch(f"/api/users/{staff['id']}", json={"is_active": False}, headers=h)
+    assert client.post("/api/auth/login", json={"username": "staff1", "password": "NewStaffPass1"}).status_code == 401
+
+
+def test_admin_cannot_demote_or_disable_self(client):
+    h = _admin_headers(client)
+    me = client.get("/api/auth/me", headers=h).json()
+    assert client.patch(f"/api/users/{me['id']}", json={"is_admin": False}, headers=h).status_code == 400
+    assert client.patch(f"/api/users/{me['id']}", json={"is_active": False}, headers=h).status_code == 400

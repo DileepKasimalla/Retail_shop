@@ -62,7 +62,7 @@ def create_admin(username: str | None) -> None:
             print(f"User '{username}' already exists. Use reset-password instead.")
             sys.exit(1)
         pw = _prompt_password()
-        db.add(User(username=username, hashed_password=hash_password(pw)))
+        db.add(User(username=username, hashed_password=hash_password(pw), is_admin=True))
         db.commit()
         print(f"Created shopkeeper account '{username}'.")
 

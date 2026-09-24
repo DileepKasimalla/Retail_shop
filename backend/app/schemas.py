@@ -24,6 +24,24 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     username: str
+    is_admin: bool
+    is_active: bool
+
+
+class SetupStatus(BaseModel):
+    needs_setup: bool
+
+
+class UserCreate(BaseModel):
+    username: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=8, max_length=200)
+    is_admin: bool = False
+
+
+class UserUpdate(BaseModel):
+    is_admin: bool | None = None
+    is_active: bool | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=200)
 
 
 class ChangePasswordRequest(BaseModel):

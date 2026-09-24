@@ -4,13 +4,20 @@ from __future__ import annotations
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import User
-from ..schemas import ChangePasswordRequest, LoginRequest, Token, UserOut
+from ..schemas import (
+    ChangePasswordRequest,
+    LoginRequest,
+    SetupStatus,
+    Token,
+    UserCreate,
+    UserOut,
+)
 from ..security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -70,6 +77,41 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     _attempts.pop(ip, None)
     token = create_access_token(subject=user.id)
     return Token(access_token=token)
+
+
+def _has_users(db: Session) -> bool:
+    return db.scalar(select(User.id).limit(1)) is not None
+
+
+@router.get("/setup", response_model=SetupStatus)
+def setup_status(db: Session = Depends(get_db)) -> SetupStatus:
+    """Public: tells the login screen to offer first-run setup instead."""
+    return SetupStatus(needs_setup=not _has_users(db))
+
+
+@router.post("/setup", response_model=Token, status_code=status.HTTP_201_CREATED)
+def setup(payload: UserCreate, db: Session = Depends(get_db)) -> Token:
+    """Create the first admin on an empty database, and log them in.
+
+    Unauthenticated by necessity — there is nobody to authenticate as yet — so
+    it only works while the users table is empty and refuses forever after.
+    """
+    if db.bind.dialect.name == "postgresql":
+        # Serialise concurrent first-run requests so only one admin is created.
+        db.execute(text("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE"))
+    if _has_users(db):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Setup is already complete. Sign in instead.",
+        )
+    user = User(
+        username=payload.username.strip(),
+        hashed_password=hash_password(payload.password),
+        is_admin=True,
+    )
+    db.add(user)
+    db.commit()
+    return Token(access_token=create_access_token(subject=user.id))
 
 
 @router.get("/me", response_model=UserOut)

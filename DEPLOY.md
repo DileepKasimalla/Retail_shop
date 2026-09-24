@@ -113,20 +113,26 @@ CORS check. Only set it if you later serve the frontend from another domain.
 
 ## 5. Create your login
 
-**From Vercel (no local setup).** Add two more environment variables and
-redeploy:
+**In the browser (recommended).** Open the deployed site. While the database
+has no users, the login page shows **Create admin account** instead of Sign in
+— fill it in and you're signed in as the first admin. The app creates its
+tables on the first cold start, so nothing else is needed.
 
-```
-ADMIN_USERNAME=<your login name>
-ADMIN_PASSWORD=<at least 8 characters>
-```
+This first-run form is public and works exactly once, so do it **right after
+the first deploy** — whoever submits it first becomes the admin. After that it
+refuses (409) for good.
 
-On its first cold start the deployed app creates any missing tables and, if the
-database has no users yet, creates this account. Log in, then **delete both
-variables** in Vercel — once a user exists they are ignored, and the password
-shouldn't sit in the project settings. Change it from the Settings page.
+**Adding more people:** as an admin, go to **Settings → Users → Add a user**.
+Tick *Admin* to let them manage users too; everyone else is *staff* and can use
+the whole shop except user management. From the same table an admin can reset
+a password, disable an account (it's signed out on its next request), or
+promote/demote. You can't disable or demote yourself, and the last active
+admin can't be removed.
 
-**Or from your machine**, pointed at Neon (**direct** URL). PowerShell:
+**Alternatives:** set `ADMIN_USERNAME` / `ADMIN_PASSWORD` in Vercel and
+redeploy — the first admin is created from them when no user exists (delete
+them afterwards). Or from your machine, pointed at Neon (**direct** URL).
+PowerShell:
 
 ```powershell
 cd backend

@@ -10,6 +10,20 @@ export interface Meta {
 export interface User {
   id: number;
   username: string;
+  is_admin: boolean;
+  is_active: boolean;
+}
+
+export interface UserInput {
+  username: string;
+  password: string;
+  is_admin: boolean;
+}
+
+export interface UserUpdate {
+  is_admin?: boolean;
+  is_active?: boolean;
+  password?: string;
 }
 
 export interface Customer {

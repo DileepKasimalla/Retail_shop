@@ -14,6 +14,8 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  /** First-run only: create the first admin account and sign in as it. */
+  setup: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -68,8 +70,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me);
   }, []);
 
+  const setup = useCallback(async (username: string, password: string) => {
+    const { access_token } = await api.setup(username, password);
+    setToken(access_token);
+    const me = await api.me();
+    setUser(me);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, setup, logout }}>
       {children}
     </AuthContext.Provider>
   );
